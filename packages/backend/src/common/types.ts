@@ -1,4 +1,4 @@
-import type { JWT } from '@fastify/jwt';
+import '@fastify/jwt';
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {
@@ -7,15 +7,5 @@ declare module '@fastify/jwt' {
       email: string;
       username: string;
     };
-  }
-}
-
-declare module 'fastify' {
-  interface FastifyRequest {
-    user: {
-      id: string;
-      email: string;
-      username: string;
-    } | null;
   }
 }
