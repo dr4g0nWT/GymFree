@@ -1,0 +1,87 @@
+{
+  "version": 3,
+  "skills": {
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/skills.git",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "skillFolderHash": "3013fdeb8a11b10b1eb795ec3ae8bfca38f7c26d",
+      "installedAt": "2026-05-14T14:21:54.741Z",
+      "updatedAt": "2026-05-14T14:21:54.741Z"
+    },
+    "nodejs-backend-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "nodejs-backend-patterns/SKILL.md",
+      "skillFolderHash": "local",
+      "installedAt": "2026-05-14T16:36:00.000Z",
+      "updatedAt": "2026-05-14T16:36:00.000Z"
+    },
+    "architecture-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "architecture-patterns/SKILL.md",
+      "skillFolderHash": "local",
+      "installedAt": "2026-05-14T16:36:00.000Z",
+      "updatedAt": "2026-05-14T16:36:00.000Z"
+    },
+    "javascript-testing-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "javascript-testing-patterns/SKILL.md",
+      "skillFolderHash": "local",
+      "installedAt": "2026-05-14T16:36:00.000Z",
+      "updatedAt": "2026-05-14T16:36:00.000Z"
+    },
+    "design-system-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "design-system-patterns/SKILL.md",
+      "skillFolderHash": "local",
+      "installedAt": "2026-05-14T16:36:00.000Z",
+      "updatedAt": "2026-05-14T16:36:00.000Z"
+    },
+    "visual-design-foundations": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "visual-design-foundations/SKILL.md",
+      "skillFolderHash": "local",
+      "installedAt": "2026-05-14T16:36:00.000Z",
+      "updatedAt": "2026-05-14T16:36:00.000Z"
+    },
+    "e2e-testing-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "e2e-testing-patterns/SKILL.md",
+      "skillFolderHash": "local",
+      "installedAt": "2026-05-14T16:36:00.000Z",
+      "updatedAt": "2026-05-14T16:36:00.000Z"
+    }
+  },
+  "dismissed": {
+    "findSkillsPrompt": true
+  },
+  "lastSelectedAgents": [
+    "amp",
+    "antigravity",
+    "cline",
+    "codex",
+    "cursor",
+    "deepagents",
+    "dexto",
+    "firebender",
+    "gemini-cli",
+    "github-copilot",
+    "kimi-cli",
+    "opencode",
+    "warp",
+    "openclaw"
+  ]
+}

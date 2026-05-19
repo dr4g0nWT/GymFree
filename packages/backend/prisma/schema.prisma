@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MuscleGroup {
+  CHEST
+  BACK
+  SHOULDERS
+  BICEPS
+  TRICEPS
+  FOREAMS
+  QUADRICEPS
+  HAMSTRINGS
+  GLUTES
+  CALVES
+  ABS
+  LOWER_BACK
+  TRAPS
+  NECK
+  FULL_BODY
+  CARDIO
+}
+
+enum Equipment {
+  BARBELL
+  DUMBBELL
+  KETTLEBELL
+  CABLE
+  MACHINE
+  BODYWEIGHT
+  BAND
+  MEDICINE_BALL
+  BENCH
+  SQUAT_RACK
+  PULL_UP_BAR
+  DIP_BARS
+  SMITH_MACHINE
+  LEG_PRESS
+  OTHER
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum ExperienceLevel {
+  BEGINNER
+  NOVICE
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum SessionStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  VERIFIED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  MODEL_3D
+}
+
+model User {
+  id           String         @id @default(cuid())
+  username     String         @unique
+  email        String         @unique
+  passwordHash String
+  avatarUrl    String?
+  bio          String?
+  experience   ExperienceLevel @default(BEGINNER)
+  totalPoints  Int            @default(0)
+  isPublic     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  exercises       Exercise[]
+  routines        Routine[]
+  workouts        Workout[]
+  hostedSessions  GymbrosSession[] @relation("Host")
+  partnerSessions GymbrosSession[] @relation("Partner")
+  photos          GymbrosPhoto[]
+  followers       Follow[]         @relation("Following")
+  following       Follow[]         @relation("Follower")
+  ranking         Ranking?
+
+  @@map("users")
+}
+
+model Exercise {
+  id           String      @id @default(cuid())
+  name         String
+  description  String?
+  muscleGroup  MuscleGroup
+  equipment    Equipment?
+  mediaUrl     String?
+  mediaType    MediaType?
+  isPublic     Boolean     @default(true)
+  isPredefined Boolean     @default(false)
+  createdById  String?
+  createdBy    User?       @relation(fields: [createdById], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  routineExercises RoutineExercise[]
+  workoutExercises WorkoutExercise[]
+
+  @@index([muscleGroup])
+  @@index([equipment])
+  @@index([createdById])
+  @@map("exercises")
+}
+
+model Routine {
+  id            String     @id @default(cuid())
+  name          String
+  description   String?
+  difficulty    Difficulty @default(BEGINNER)
+  estimatedMin  Int?
+  isPublic      Boolean    @default(true)
+  isPredefined  Boolean    @default(false)
+  createdById   String?
+  createdBy     User?      @relation(fields: [createdById], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  exercises RoutineExercise[]
+  workouts  Workout[]
+
+  @@index([createdById])
+  @@index([difficulty])
+  @@map("routines")
+}
+
+model RoutineExercise {
+  id           String   @id @default(cuid())
+  routineId    String
+  routine      Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exerciseId   String
+  exercise     Exercise @relation(fields: [exerciseId], references: [id])
+  orderIndex   Int
+  targetSets   Int      @default(3)
+  targetReps   Int?
+  targetWeight Float?
+  restSeconds  Int      @default(90)
+  notes        String?
+
+  @@unique([routineId, exerciseId])
+  @@map("routine_exercises")
+}
+
+model Workout {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  routineId   String?
+  routine     Routine?  @relation(fields: [routineId], references: [id])
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  durationMin Int?
+  notes       String?
+  isGymbros   Boolean   @default(false)
+
+  exercises       WorkoutExercise[]
+  gymbrosSession  GymbrosSession?
+
+  @@index([userId])
+  @@index([userId, startedAt(sort: Desc)])
+  @@map("workouts")
+}
+
+model WorkoutExercise {
+  id         String   @id @default(cuid())
+  workoutId  String
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+  orderIndex Int
+
+  sets WorkoutSet[]
+
+  @@map("workout_exercises")
+}
+
+model WorkoutSet {
+  id                String           @id @default(cuid())
+  workoutExerciseId String
+  workoutExercise   WorkoutExercise  @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  setNumber         Int
+  weightKg          Float?
+  reps              Int?
+  isCompleted       Boolean          @default(false)
+  rpe               Int?
+  createdAt         DateTime         @default(now())
+
+  @@map("workout_sets")
+}
+
+model GymbrosSession {
+  id          String        @id @default(cuid())
+  hostId      String
+  host        User          @relation("Host", fields: [hostId], references: [id])
+  partnerId   String
+  partner     User          @relation("Partner", fields: [partnerId], references: [id])
+  workoutId   String?       @unique
+  workout     Workout?      @relation(fields: [workoutId], references: [id])
+  status      SessionStatus @default(PENDING)
+  startedAt   DateTime      @default(now())
+  endedAt     DateTime?
+  bonusPoints Int           @default(0)
+
+  photos GymbrosPhoto[]
+
+  @@map("gymbros_sessions")
+}
+
+model GymbrosPhoto {
+  id        String         @id @default(cuid())
+  sessionId String
+  session   GymbrosSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+  photoUrl  String
+  verified  Boolean        @default(false)
+  createdAt DateTime       @default(now())
+
+  @@map("gymbros_photos")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("Follower", fields: [followerId], references: [id])
+  followingId String
+  following   User     @relation("Following", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model Ranking {
+  id          String         @id @default(cuid())
+  userId      String         @unique
+  user        User           @relation(fields: [userId], references: [id])
+  totalPoints Int            @default(0)
+  weekPoints  Int            @default(0)
+  monthPoints Int            @default(0)
+  rank        Int?
+  updatedAt   DateTime       @updatedAt
+
+  @@index([totalPoints(sort: Desc)])
+  @@map("rankings")
+}

@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Check formatting
+        run: npx biome format --write . --diagnostic-level=error
+
+      - name: Lint
+        run: npx biome check . --diagnostic-level=error
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build shared package
+        run: npx turbo build --filter=@gymfree/shared
+
+      - name: Type check backend
+        run: npx tsc --noEmit --project packages/backend/tsconfig.json
+
+      - name: Type check mobile
+        run: npx tsc --noEmit --project packages/mobile/tsconfig.json
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: gymfree_test
+          POSTGRES_USER: gymfree
+          POSTGRES_PASSWORD: gymfree-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: packages/backend
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://gymfree:gymfree-test@localhost:5432/gymfree_test
+
+      - name: Run migrations
+        working-directory: packages/backend
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://gymfree:gymfree-test@localhost:5432/gymfree_test
+
+      - name: Run tests
+        run: npx turbo test
+        env:
+          DATABASE_URL: postgresql://gymfree:gymfree-test@localhost:5432/gymfree_test
+          JWT_SECRET: test-secret-thats-at-least-32-characters-long!!
