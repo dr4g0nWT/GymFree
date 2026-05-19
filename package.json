@@ -1,0 +1,29 @@
+{
+  "name": "gymfree",
+  "private": true,
+  "description": "Open-source gym workout tracker. No subscriptions. Forever free.",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "format": "biome format --write .",
+    "check": "biome check --write .",
+    "test": "turbo test",
+    "clean": "turbo clean",
+    "db:migrate": "turbo db:migrate",
+    "db:seed": "turbo db:seed",
+    "db:studio": "turbo db:studio"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@11.12.1"
+}
