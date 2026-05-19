@@ -9,6 +9,10 @@ import swaggerUi from '@fastify/swagger-ui';
 
 import { config } from './config/index.js';
 import { AppError } from './common/errors.js';
+import './common/types.js';
+import { authRoutes } from './modules/auth/auth.routes.js';
+import { exerciseRoutes } from './modules/exercises/exercise.routes.js';
+import { routineRoutes } from './modules/routines/routine.routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -81,14 +85,10 @@ export async function buildApp() {
     uptime: process.uptime(),
   }));
 
-  // Module routes will be registered here
-  // await app.register(authRoutes, { prefix: '/api/auth' });
-  // await app.register(exerciseRoutes, { prefix: '/api/exercises' });
-  // await app.register(routineRoutes, { prefix: '/api/routines' });
-  // await app.register(workoutRoutes, { prefix: '/api/workouts' });
-  // await app.register(gymbrosRoutes, { prefix: '/api/gymbros' });
-  // await app.register(rankingRoutes, { prefix: '/api/rankings' });
-  // await app.register(socialRoutes, { prefix: '/api/social' });
+  // API Routes
+  await app.register(authRoutes, { prefix: '/api/auth' });
+  await app.register(exerciseRoutes, { prefix: '/api/exercises' });
+  await app.register(routineRoutes, { prefix: '/api/routines' });
 
   return app;
 }
