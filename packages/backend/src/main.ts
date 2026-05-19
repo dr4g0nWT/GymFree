@@ -13,6 +13,7 @@ import './common/types.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { exerciseRoutes } from './modules/exercises/exercise.routes.js';
 import { routineRoutes } from './modules/routines/routine.routes.js';
+import { workoutRoutes } from './modules/workouts/workout.routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -48,10 +49,10 @@ export async function buildApp() {
   await app.register(swaggerUi, { routePrefix: '/docs' });
 
   // Decorate request with user
-  app.decorateRequest('user', null);
+  app.decorateRequest('user', null as any);
 
   // Error handler
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error: any, request, reply) => {
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send({
         statusCode: error.statusCode,
@@ -89,6 +90,7 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(exerciseRoutes, { prefix: '/api/exercises' });
   await app.register(routineRoutes, { prefix: '/api/routines' });
+  await app.register(workoutRoutes, { prefix: '/api/workouts' });
 
   return app;
 }

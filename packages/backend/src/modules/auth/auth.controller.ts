@@ -60,7 +60,7 @@ export async function refresh(request: FastifyRequest, reply: FastifyReply) {
   }
 
   try {
-    const payload = request.jwt.verify<{ id: string; type: string }>(refreshToken);
+    const payload = request.server.jwt.verify<{ id: string; type: string }>(refreshToken);
 
     if (payload.type !== 'refresh') {
       return reply.status(401).send({
