@@ -1,187 +1,358 @@
-import { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Surface, ProgressBar, IconButton, useTheme } from 'react-native-paper';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { View, StyleSheet, FlatList, Pressable, Modal } from 'react-native';
+import { Text, IconButton, Button, TextInput, SegmentedButtons, Chip, FAB } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { workoutService } from '@/services/workout.service';
+import { exerciseService } from '@/services/exercise.service';
+import type { Exercise, WorkoutSet } from '@gymfree/shared';
+
+interface WorkoutExercise {
+  id: string;
+  orderIndex: number;
+  exercise: {
+    id: string;
+    name: string;
+    muscleGroup: string;
+    equipment: string | null;
+  };
+  sets: WorkoutSet[];
+}
+
+interface WorkoutData {
+  id: string;
+  routine: { id: string; name: string } | null;
+  startedAt: string;
+  notes: string | null;
+  exercises: WorkoutExercise[];
+}
 
 export default function ActiveWorkoutScreen() {
-  const theme = useTheme();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const [workout, setWorkout] = useState<WorkoutData | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  const [restTime, setRestTime] = useState(0);
-  const [isResting, setIsResting] = useState(false);
+  const [addExerciseModal, setAddExerciseModal] = useState(false);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  const [editingSet, setEditingSet] = useState<{
+    setId: string;
+    weightKg: string;
+    reps: string;
+    rpe: string;
+  } | null>(null);
 
-  // Timer
   useEffect(() => {
+    if (!id) return;
+    workoutService.getWorkoutById(id).then((w) => {
+      setWorkout(w as unknown as WorkoutData);
+    }).catch(console.error);
+
+    workoutService.getActiveWorkout().then((w) => {
+      if (!w) router.replace('/workout/start');
+    }).catch(() => router.replace('/workout/start'));
+  }, [id]);
+
+  useEffect(() => {
+    if (!workout?.startedAt) return;
+    const start = new Date(workout.startedAt).getTime();
     const interval = setInterval(() => {
-      setElapsed((e) => e + 1);
-      if (isResting && restTime > 0) {
-        setRestTime((r) => Math.max(0, r - 1));
-      }
+      setElapsed(Math.floor((Date.now() - start) / 1000));
     }, 1000);
     return () => clearInterval(interval);
-  }, [isResting, restTime]);
+  }, [workout?.startedAt]);
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    const h = Math.floor(m / 60);
+    return h > 0
+      ? `${h}:${String(m % 60).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+      : `${m}:${String(sec).padStart(2, '0')}`;
   };
 
-  const handleRest = () => {
-    setIsResting(true);
-    setRestTime(90);
-  };
+  const handleAddExercise = useCallback(async (exerciseId: string) => {
+    try {
+      const result = await workoutService.addExercise(id!, exerciseId);
+      setWorkout((prev) => prev ? {
+        ...prev,
+        exercises: [...prev.exercises, result as unknown as WorkoutExercise],
+      } : prev);
+      setAddExerciseModal(false);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [id]);
 
-  const handleEnd = () => {
-    router.replace('/workout/complete');
-  };
+  const handleLogSet = useCallback(async (exerciseId: string, setNumber: number) => {
+    try {
+      const set = await workoutService.logSet(exerciseId, {
+        setNumber,
+        weightKg: 0,
+        reps: 0,
+        isCompleted: false,
+      });
+      setWorkout((prev) => prev ? {
+        ...prev,
+        exercises: prev.exercises.map((ex) =>
+          ex.id === exerciseId
+            ? { ...ex, sets: [...ex.sets, set] }
+            : ex
+        ),
+      } : prev);
+      setEditingSet({
+        setId: set.id,
+        weightKg: '0',
+        reps: '0',
+        rpe: '',
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const handleSaveSet = useCallback(async () => {
+    if (!editingSet) return;
+    try {
+      const updated = await workoutService.updateSet(editingSet.setId, {
+        weightKg: parseFloat(editingSet.weightKg) || 0,
+        reps: parseInt(editingSet.reps) || 0,
+        ...(editingSet.rpe ? { rpe: parseInt(editingSet.rpe) } : {}),
+      });
+      setWorkout((prev) => prev ? {
+        ...prev,
+        exercises: prev.exercises.map((ex) => ({
+          ...ex,
+          sets: ex.sets.map((s) => s.id === updated.id ? updated : s),
+        })),
+      } : prev);
+      setEditingSet(null);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [editingSet]);
+
+  const handleToggleComplete = useCallback(async (setId: string, current: boolean) => {
+    try {
+      const updated = await workoutService.updateSet(setId, {
+        isCompleted: !current,
+      });
+      setWorkout((prev) => prev ? {
+        ...prev,
+        exercises: prev.exercises.map((ex) => ({
+          ...ex,
+          sets: ex.sets.map((s) => s.id === updated.id ? updated : s),
+        })),
+      } : prev);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const handleDeleteSet = useCallback(async (setId: string) => {
+    try {
+      await workoutService.deleteSet(setId);
+      setWorkout((prev) => prev ? {
+        ...prev,
+        exercises: prev.exercises.map((ex) => ({
+          ...ex,
+          sets: ex.sets.filter((s) => s.id !== setId),
+        })),
+      } : prev);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const handleComplete = useCallback(async () => {
+    try {
+      const result = await workoutService.completeWorkout(id!);
+      router.push(`/workout/complete?id=${id}`);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [id]);
+
+  const openAddExercise = useCallback(async () => {
+    try {
+      const ex = await exerciseService.list();
+      setAllExercises(ex.data);
+      setAddExerciseModal(true);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  if (!workout) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={{ padding: 16 }}>Loading workout...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <Surface style={styles.header}>
-        <View style={styles.headerRow}>
-          <IconButton icon="close" onPress={handleEnd} />
-          <Text variant="titleMedium">{formatTime(elapsed)}</Text>
-          <IconButton icon="check" onPress={handleEnd} />
+      <View style={styles.header}>
+        <IconButton icon="close" onPress={() => router.back()} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="titleMedium">
+            {workout.routine?.name ?? 'Workout'}
+          </Text>
+          <Text variant="headlineSmall" style={styles.timer}>
+            {formatTime(elapsed)}
+          </Text>
         </View>
-        <ProgressBar progress={0.3} color={theme.colors.primary} />
-      </Surface>
-
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Current Exercise */}
-        <Surface style={styles.exerciseCard}>
-          <Text variant="titleLarge" style={styles.exerciseName}>
-            Bench Press
+        <Pressable onPress={handleComplete}>
+          <Text variant="labelLarge" style={{ color: '#6750A4', marginRight: 16 }}>
+            Finish
           </Text>
-          <Text variant="bodyMedium" style={{ opacity: 0.5 }}>
-            Set 1 of 3 • 90s rest
-          </Text>
+        </Pressable>
+      </View>
 
-          {/* Set Input */}
-          <View style={styles.setInputRow}>
-            <View style={styles.inputGroup}>
-              <Text variant="labelMedium">Weight (kg)</Text>
-              <Surface style={styles.inputBox}>
-                <Text variant="headlineMedium">0</Text>
-              </Surface>
+      <FlatList
+        data={workout.exercises}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        renderItem={({ item: ex }) => (
+          <View style={styles.exerciseCard}>
+            <View style={styles.exerciseHeader}>
+              <View style={{ flex: 1 }}>
+                <Text variant="titleSmall" style={{ fontWeight: '600' }}>
+                  {ex.exercise.name}
+                </Text>
+                <Text variant="bodySmall" style={{ opacity: 0.4 }}>
+                  {ex.exercise.muscleGroup}{ex.exercise.equipment ? ` · ${ex.exercise.equipment}` : ''}
+                </Text>
+              </View>
+              <IconButton
+                icon="plus-circle-outline"
+                size={20}
+                onPress={() => handleLogSet(ex.id, (ex.sets.length) + 1)}
+              />
             </View>
-            <View style={styles.inputGroup}>
-              <Text variant="labelMedium">Reps</Text>
-              <Surface style={styles.inputBox}>
-                <Text variant="headlineMedium">0</Text>
-              </Surface>
+
+            {ex.sets.length > 0 && (
+              <View style={styles.setsHeader}>
+                <Text style={styles.setCol}>SET</Text>
+                <Text style={styles.setCol}>WEIGHT</Text>
+                <Text style={styles.setCol}>REPS</Text>
+                <Text style={styles.setCol}>RPE</Text>
+                <Text style={styles.setCol}>DONE</Text>
+              </View>
+            )}
+
+            {ex.sets.map((set, idx) => (
+              <Pressable
+                key={set.id}
+                style={styles.setRow}
+                onPress={() => setEditingSet({
+                  setId: set.id,
+                  weightKg: String(set.weightKg ?? ''),
+                  reps: String(set.reps ?? ''),
+                  rpe: String(set.rpe ?? ''),
+                })}
+              >
+                <Text style={styles.setCol}>{idx + 1}</Text>
+                <Text style={styles.setCol}>{set.weightKg ?? '-'}</Text>
+                <Text style={styles.setCol}>{set.reps ?? '-'}</Text>
+                <Text style={styles.setCol}>{set.rpe ?? '-'}</Text>
+                <Pressable
+                  style={[styles.checkbox, set.isCompleted && styles.checkboxDone]}
+                  onPress={() => handleToggleComplete(set.id, set.isCompleted)}
+                >
+                  {set.isCompleted && <Text style={{ color: 'white' }}>✓</Text>}
+                </Pressable>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      />
+
+      <FAB icon="plus" label="Add Exercise" style={styles.fab} onPress={openAddExercise} />
+
+      <Modal visible={!!editingSet} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text variant="titleMedium" style={{ marginBottom: 16 }}>Edit Set</Text>
+            <TextInput
+              label="Weight (kg)"
+              keyboardType="numeric"
+              value={editingSet?.weightKg ?? ''}
+              onChangeText={(v) => setEditingSet((prev) => prev ? { ...prev, weightKg: v } : null)}
+              mode="outlined"
+              style={{ marginBottom: 12 }}
+            />
+            <TextInput
+              label="Reps"
+              keyboardType="numeric"
+              value={editingSet?.reps ?? ''}
+              onChangeText={(v) => setEditingSet((prev) => prev ? { ...prev, reps: v } : null)}
+              mode="outlined"
+              style={{ marginBottom: 12 }}
+            />
+            <TextInput
+              label="RPE (1-10)"
+              keyboardType="numeric"
+              value={editingSet?.rpe ?? ''}
+              onChangeText={(v) => setEditingSet((prev) => prev ? { ...prev, rpe: v } : null)}
+              mode="outlined"
+              style={{ marginBottom: 20 }}
+            />
+            <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'flex-end' }}>
+              <Button mode="outlined" onPress={() => setEditingSet(null)}>Cancel</Button>
+              <Button mode="contained" onPress={handleSaveSet}>Save</Button>
             </View>
           </View>
+        </View>
+      </Modal>
 
-          <Button mode="contained" onPress={handleRest} style={styles.completeSet}>
-            Complete Set
-          </Button>
-
-          {/* Previous sets */}
-          <View style={styles.prevSets}>
-            <Text variant="labelSmall" style={{ opacity: 0.5 }}>Previous sets</Text>
-            {/* TODO: list previous sets */}
+      <Modal visible={addExerciseModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalList}>
+            <View style={styles.modalHeader}>
+              <Text variant="titleMedium">Add Exercise</Text>
+              <IconButton icon="close" onPress={() => setAddExerciseModal(false)} />
+            </View>
+            <FlatList
+              data={allExercises}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={styles.exerciseItem}
+                  onPress={() => handleAddExercise(item.id)}
+                >
+                  <Text variant="bodyMedium">{item.name}</Text>
+                  <Text variant="bodySmall" style={{ opacity: 0.4 }}>
+                    {item.muscleGroup}
+                  </Text>
+                </Pressable>
+              )}
+            />
           </View>
-        </Surface>
-
-        {/* Next Exercises */}
-        <Text variant="titleSmall" style={styles.upcomingTitle}>
-          Upcoming
-        </Text>
-        <Surface style={styles.upcomingCard}>
-          <Text variant="bodyMedium">Incline Dumbbell Press</Text>
-        </Surface>
-        <Surface style={styles.upcomingCard}>
-          <Text variant="bodyMedium">Cable Flyes</Text>
-        </Surface>
-      </ScrollView>
-
-      {/* Rest Timer Overlay */}
-      {isResting && restTime > 0 && (
-        <Surface style={styles.restOverlay}>
-          <Text variant="labelMedium">Rest</Text>
-          <Text variant="displaySmall">{formatTime(restTime)}</Text>
-          <Button mode="text" onPress={() => setIsResting(false)}>
-            Skip
-          </Button>
-        </Surface>
-      )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1, backgroundColor: '#fff' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingRight: 8 },
+  timer: { fontWeight: '300', fontSize: 32, letterSpacing: 2 },
+  list: { padding: 16, paddingBottom: 80 },
+  exerciseCard: { marginBottom: 16, borderRadius: 12, padding: 12 },
+  exerciseHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  setsHeader: { flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 1, borderColor: '#eee' },
+  setRow: { flexDirection: 'row', paddingVertical: 8, alignItems: 'center', borderBottomWidth: 1, borderColor: '#f5f5f5' },
+  setCol: { flex: 1, fontSize: 13, textAlign: 'center' },
+  checkbox: {
+    width: 28, height: 28, borderRadius: 14, borderWidth: 2,
+    borderColor: '#ccc', justifyContent: 'center', alignItems: 'center',
   },
-  header: {
-    padding: 8,
-    elevation: 4,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  scroll: {
-    padding: 16,
-  },
-  exerciseCard: {
-    padding: 24,
-    borderRadius: 16,
-    elevation: 2,
-    marginBottom: 16,
-  },
-  exerciseName: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  setInputRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  inputGroup: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  inputBox: {
-    width: 120,
-    height: 80,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-    elevation: 2,
-  },
-  completeSet: {
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  prevSets: {
-    marginTop: 16,
-  },
-  upcomingTitle: {
-    marginBottom: 8,
-    opacity: 0.5,
-  },
-  upcomingCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    elevation: 1,
-  },
-  restOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 32,
-    alignItems: 'center',
-    elevation: 8,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
+  checkboxDone: { backgroundColor: '#6750A4', borderColor: '#6750A4' },
+  fab: { position: 'absolute', margin: 16, right: 0, bottom: 0, borderRadius: 16 },
+  modalOverlay: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)', padding: 24 },
+  modal: { backgroundColor: 'white', borderRadius: 16, padding: 24 },
+  modalList: { backgroundColor: 'white', borderRadius: 16, padding: 16, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  exerciseItem: { padding: 12, borderBottomWidth: 1, borderColor: '#f0f0f0' },
 });

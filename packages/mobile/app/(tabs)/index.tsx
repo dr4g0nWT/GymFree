@@ -1,30 +1,53 @@
+import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Card, Button, Surface, useTheme } from 'react-native-paper';
+import { Text, Card, Button, Surface, useTheme, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { workoutService } from '@/services/workout.service';
 
 export default function HomeScreen() {
   const theme = useTheme();
+  const [activeWorkout, setActiveWorkout] = useState<{ id: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    workoutService.getActiveWorkout()
+      .then((w) => { if (w) setActiveWorkout(w); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text variant="headlineSmall" style={styles.greeting}>
-          Ready to train?
+          {activeWorkout ? 'Resume your workout' : 'Ready to train?'}
         </Text>
 
-        <Button
-          mode="contained"
-          icon={() => (
-            <MaterialCommunityIcons name="play-circle" size={24} color="white" />
-          )}
-          onPress={() => router.push('/workout/start')}
-          style={styles.startButton}
-          contentStyle={styles.startButtonContent}
-        >
-          Start Workout
-        </Button>
+        {loading ? (
+          <ActivityIndicator style={{ marginBottom: 24 }} />
+        ) : activeWorkout ? (
+          <Button
+            mode="contained"
+            icon={() => <MaterialCommunityIcons name="play-circle" size={24} color="white" />}
+            onPress={() => router.push(`/workout/active?id=${activeWorkout.id}`)}
+            style={styles.startButton}
+            contentStyle={styles.startButtonContent}
+          >
+            Resume Workout
+          </Button>
+        ) : (
+          <Button
+            mode="contained"
+            icon={() => <MaterialCommunityIcons name="play-circle" size={24} color="white" />}
+            onPress={() => router.push('/workout/start')}
+            style={styles.startButton}
+            contentStyle={styles.startButtonContent}
+          >
+            Start Workout
+          </Button>
+        )}
 
         <Surface style={styles.statsCard}>
           <Text variant="titleMedium" style={styles.sectionTitle}>

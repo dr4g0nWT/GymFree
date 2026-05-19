@@ -1,5 +1,42 @@
 # Local Development Setup
 
+## Quick Start (One Command)
+
+### Windows (PowerShell)
+```powershell
+.\dev.ps1
+```
+
+### macOS / Linux
+```bash
+chmod +x dev.sh
+./dev.sh
+```
+
+This single command will:
+1. Start PostgreSQL + MinIO via Docker
+2. Install dependencies (if needed)
+3. Build the shared package
+4. Run database migrations & seed data
+5. Start the backend API (port 3001)
+6. Start the Expo dev server (for mobile)
+
+### Options
+
+```bash
+# Backend only (no mobile)
+.\dev.ps1 -BackendOnly          # PowerShell
+./dev.sh --backend-only          # Bash
+
+# Mobile only (no backend, no Docker)
+.\dev.ps1 -MobileOnly            # PowerShell
+./dev.sh --mobile-only           # Bash
+
+# Skip Docker (if already running)
+.\dev.ps1 -SkipDocker            # PowerShell
+./dev.sh --skip-docker           # Bash
+```
+
 ## Prerequisites
 
 - **Node.js** >= 20.0.0

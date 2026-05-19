@@ -5,11 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { authService } from '@/services/auth.service';
-import type { UserProfile } from '@gymfree/shared';
+import type { User } from '@gymfree/shared';
 
 export default function ProfileScreen() {
   const clearTokens = useAuthStore((s) => s.clearTokens);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,6 +19,14 @@ export default function ProfileScreen() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  const stats = {
+    workoutsCount: 0,
+    currentStreak: 0,
+    totalPoints: profile?.totalPoints ?? 0,
+    followersCount: 0,
+    followingCount: 0,
+  };
 
   const handleLogout = () => {
     clearTokens();
@@ -54,25 +62,25 @@ export default function ProfileScreen() {
         <Surface style={styles.statsCard}>
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Text variant="titleLarge">{profile?.workoutsCount ?? 0}</Text>
+              <Text variant="titleLarge">{stats.workoutsCount}</Text>
               <Text variant="bodySmall">Workouts</Text>
             </View>
             <View style={styles.stat}>
-              <Text variant="titleLarge">{profile?.currentStreak ?? 0}</Text>
+              <Text variant="titleLarge">{stats.currentStreak}</Text>
               <Text variant="bodySmall">Streak</Text>
             </View>
             <View style={styles.stat}>
-              <Text variant="titleLarge">{profile?.totalPoints ?? 0}</Text>
+              <Text variant="titleLarge">{stats.totalPoints}</Text>
               <Text variant="bodySmall">Points</Text>
             </View>
           </View>
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Text variant="titleLarge">{profile?.followersCount ?? 0}</Text>
+              <Text variant="titleLarge">{stats.followersCount}</Text>
               <Text variant="bodySmall">Followers</Text>
             </View>
             <View style={styles.stat}>
-              <Text variant="titleLarge">{profile?.followingCount ?? 0}</Text>
+              <Text variant="titleLarge">{stats.followingCount}</Text>
               <Text variant="bodySmall">Following</Text>
             </View>
           </View>
